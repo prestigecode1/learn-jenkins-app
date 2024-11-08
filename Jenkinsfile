@@ -25,44 +25,49 @@ pipeline {
             }
         }
 
-        stage('Test') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                    reuseNode true
-                }  
-            }
+        stage('Tests') {
+            parallel {
+                stage('Unit Tests') {
+                    agent {
+                        docker {
+                            image 'node:18-alpine'
+                            reuseNode true
+                        }  
+                    }
 
-            steps {
-                sh '''
-                echo "Test stage"
-                # -f ensures it exists and is a regular file
-                test -f build/index.html
-                npm test
-            '''
+                    steps {
+                        sh '''
+                            echo "Test stage"
+                            # -f ensures it exists and is a regular file
+                            test -f build/index.html
+                            npm test
+                        '''
+                    }    
+                }
+
+                stage('E2E') {
+                    agent {
+                        docker {
+                            image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                            reuseNode true
+                        }  
+                    }
+
+                    steps {
+                        sh '''
+                            npm install serve
+                            # locally serves, instead of global, -s single-page app, & runs in the background so that terminal is freed up
+                            node_modules/.bin/serve -s build &
+                            sleep 10
+                            npx playwright test --reporter=html
+                        '''
+                    }
+                    
+                }
             }
-            
         }
 
-        stage('E2E') {
-            agent {
-                docker {
-                    image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
-                    reuseNode true
-                }  
-            }
-
-            steps {
-                sh '''
-                    npm install serve
-                    # locally serves, instead of global, -s single-page app, & runs in the background so that terminal is freed up
-                    node_modules/.bin/serve -s build &
-                    sleep 10
-                    npx playwright test --reporter=html
-            '''
-            }
-            
-        }
+        
     }
 
     post {
