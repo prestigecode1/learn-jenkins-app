@@ -58,7 +58,7 @@ pipeline {
                     # locally serves, instead of global, -s single-page app, & runs in the background so that terminal is freed up
                     node_modules/.bin/serve -s build &
                     sleep 10
-                    npx playwright test
+                    npx playwright test --reporter=html
             '''
             }
             
@@ -68,6 +68,8 @@ pipeline {
     post {
         always {
             junit 'jest-results/junit.xml'
+            // made from the pipeline syntax module
+            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Playwright HTML Report', reportTitles: '', useWrapperFileDirectly: true])
         }
     }
 }
