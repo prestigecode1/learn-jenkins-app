@@ -4,6 +4,7 @@ pipeline {
     environment {
         NETLIFY_SITE_ID = 'ccc78abf-1937-4e95-bfee-b62b7c37b625'
         NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+        CI_ENVIRONMENT_URL = 'https://marvelous-beignet-a67858.netlify.app'
     }
 
     stages {
@@ -58,12 +59,17 @@ pipeline {
                         }  
                     }
 
+                    environment {
+                        CI_ENVIRONMENT_URL = 'https://marvelous-beignet-a67858.netlify.app'
+                    }
+
                     steps {
                         sh '''
-                            npm install serve
-                            # locally serves, instead of global, -s single-page app, & runs in the background so that terminal is freed up
-                            node_modules/.bin/serve -s build &
-                            sleep 10
+                            ## used to serve locally
+                            #npm install serve
+                            ## locally serves, instead of global, -s single-page app, & runs in the background so that terminal is freed up
+                            #node_modules/.bin/serve -s build &
+                            #sleep 10
                             npx playwright test --reporter=html
                         '''
                     }
@@ -72,7 +78,27 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy staging') {
+            agent {
+                docker {
+                    // some node js simple image
+                    image 'node:18-alpine'
+                    // shares workspace
+                    reuseNode true
+                }
+            }
+            steps {
+                sh '''
+                    npm install netlify-cli
+                    node_modules/.bin/netlify --version
+                    echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
+                    node_modules/.bin/netlify status
+                    node_modules/.bin/netlify deploy --dir=build
+                '''
+            }
+        }
+
+        stage('Deploy prod') {
             agent {
                 docker {
                     // some node js simple image
@@ -91,8 +117,7 @@ pipeline {
                 '''
             }
         }
-
-        
+  
     }
 
     post {
