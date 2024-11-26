@@ -96,8 +96,37 @@ pipeline {
                     node_modules/.bin/netlify deploy --dir=build --json > deploy-output.json
                     node_modules/.bin/node-jq -r '.deploy_url' deploy-output.json
                 '''
+                script {
+                    env.STAGING_URL = sh(script: "node_modules/.bin/node-jq -r '.deploy_url' deploy-output.json", returnStdout: true)
+                }
             }
+
         }
+
+        stage('Staging E2E') {
+                    agent {
+                        docker {
+                            image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                            reuseNode true
+                        }  
+                    }
+
+                    environment {
+                        CI_ENVIRONMENT_URL = "${env.STAGING_URL}"
+                    }
+
+                    steps {
+                        sh '''
+                            ## used to serve locally
+                            #npm install serve
+                            ## locally serves, instead of global, -s single-page app, & runs in the background so that terminal is freed up
+                            #node_modules/.bin/serve -s build &
+                            #sleep 10
+                            npx playwright test --reporter=html
+                        '''
+                    }
+                    
+                }
 
         stage('Approval') {
             steps {
